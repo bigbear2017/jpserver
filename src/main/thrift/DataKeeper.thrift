@@ -1,6 +1,11 @@
-namespace com.skywalker.jdserver;
+namespace java com.skywalker.jpserver
+
+struct Point {
+    1: optional i32 index; // the index of point to update
+    2: optional i64 value; // the value of point to update
+}
 
 service DataKeeperService {
-1. bool push( data : vector )
-2. vector pull () 
+    bool push( 1: list<Point> dataList ); // this op support sparse vector
+    list<Point> pull (); // this op return the sparse vector
 }
