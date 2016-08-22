@@ -1,8 +1,8 @@
 namespace java com.skywalker.jpserver
 
 struct Point {
-    1: optional i32 index; // the index of point to update
-    2: optional i64 value; // the value of point to update
+    1: optional i64 index; // the index of point to update
+    2: optional i32 value; // the value of point to update
 }
 
 service DataKeeperService {
