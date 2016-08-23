@@ -46,19 +46,19 @@ public class DataKeeperLocal implements Runnable {
 
     consumeHandler = new DataConsumeHandler(dataHandler);
     consumeThread = new Thread(consumeHandler);
-    consumeThread.start();
 
     syncHandler = new DataSyncHandler(dataHandler, localMode, zkInfo);
     syncThread = new Thread(syncHandler);
-    syncThread.start();
 
-    try {
-      zkNode = ZKManager.register(zkInfo, nodeInfo);
-      if ( zkNode != null ) {
-        LOGGER.info("Register to zookeeper successfully!");
+    if( !localMode ) {
+      try {
+        zkNode = ZKManager.register(zkInfo, nodeInfo);
+        if (zkNode != null) {
+          LOGGER.info("Register to zookeeper successfully!");
+        }
+      } catch (Exception e) {
+        throw new InterruptedException("Can not register to zookeeper!");
       }
-    } catch (Exception e) {
-      throw new InterruptedException("Can not register to zookeeper!");
     }
   }
 
@@ -69,6 +69,8 @@ public class DataKeeperLocal implements Runnable {
       if (!server.isServing()) {
         server.serve();
       }
+      consumeThread.start();
+      syncThread.start();
     } catch (Exception e) {
       LOGGER.error("Can not start server : {}", e);
     }

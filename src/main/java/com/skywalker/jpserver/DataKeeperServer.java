@@ -1,5 +1,12 @@
 package com.skywalker.jpserver;
 
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import sun.tools.asm.CatchData;
+
+import javax.smartcardio.CardTerminal;
+import java.util.Properties;
+
 /**
  * There are two modes to use, locally or distributively. The distributive mode rely on zookeeper.
  * <P>
@@ -16,4 +23,18 @@ package com.skywalker.jpserver;
  * @version 16/7/14.
  */
 public class DataKeeperServer {
+
+  public void initialize(Properties properties) {
+
+  }
+  public static void main(String [] args) {
+    try {
+      ServerOptions options = new ServerOptions();
+      CmdLineParser parser = new CmdLineParser(new ServerOptions());
+      parser.parseArgument(args);
+    } catch(CmdLineException e) {
+
+    }
+
+  }
 }
