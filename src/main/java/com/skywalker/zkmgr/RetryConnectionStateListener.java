@@ -14,12 +14,12 @@ import org.slf4j.LoggerFactory;
  */
 public class RetryConnectionStateListener implements ConnectionStateListener {
   private static final Logger LOGGER = LoggerFactory.getLogger(RetryConnectionStateListener.class);
-  private String zkNode;
+  private String zkRegPath;
   private String namePrefix;
   private NodeInfo nodeInfo;
 
-  public RetryConnectionStateListener(String zkNode, NodeInfo nodeInfo, String namePrefix) {
-    this.zkNode = zkNode;
+  public RetryConnectionStateListener(String zkRegPath, NodeInfo nodeInfo, String namePrefix){
+    this.zkRegPath = zkRegPath;
     this.namePrefix = namePrefix;
     this.nodeInfo = nodeInfo;
   }
@@ -31,9 +31,9 @@ public class RetryConnectionStateListener implements ConnectionStateListener {
       while(true)
       try {
         if (curatorFramework.getZookeeperClient().blockUntilConnectedOrTimedOut() ) {
-          if( null == ZKManager.getRegisteredZkNode(curatorFramework, zkNode, nodeInfo, namePrefix) ) {
+          if( null == ZKManager.getRegisteredZkNode(curatorFramework, zkRegPath, nodeInfo, namePrefix) ) {
             synchronized ( this ) {
-              ZKManager.createZkNode(curatorFramework, zkNode, nodeInfo, namePrefix);
+              ZKManager.createZkNode(curatorFramework, zkRegPath, nodeInfo, namePrefix);
             }
           }
           break;

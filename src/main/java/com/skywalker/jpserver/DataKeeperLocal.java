@@ -29,7 +29,7 @@ public class DataKeeperLocal implements Runnable {
   public DataKeeperLocal(Properties properties) throws Exception {
     zkInfo = new ZKInfo(properties);
     nodeInfo = NodeInfo.getLocalNodeInfo(properties);
-    handler = new DataKeeperHandler();
+    handler = new DataKeeperHandler(1000, 1000);
     TProcessor processor = new DataKeeperService.Processor<>(handler);
     TNonblockingServerSocket socket = new TNonblockingServerSocket(nodeInfo.localPort);
     server = new THsHaServer( new THsHaServer.Args(socket).processor(processor) );

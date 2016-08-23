@@ -1,5 +1,6 @@
 package com.skywalker.zkmgr;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -9,6 +10,7 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.CreateMode;
 
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -52,14 +54,14 @@ public class ZKManager {
     return null;
   }
 
-  public static String createZkNode(CuratorFramework client, String zkNode, NodeInfo nodeInfo, String prefix)
+  public static String createZkNode(CuratorFramework client, String zkRegPath, NodeInfo nodeInfo, String prefix)
     throws Exception {
-    String nodePath = zkNode + "/" + prefix;
+    String nodePath = zkRegPath + "/" + prefix;
     return client.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(nodePath,
       nodeInfo.toString().getBytes(UTF8));
   }
 
-  public static String getRegisteredZkNode(CuratorFramework client, String zkNode,
+  public static String getRegisteredZkNode(CuratorFramework client, String zkRegPath,
                                            NodeInfo nodeInfo, String prefix) throws Exception {
     if( null == client ) {
       return null;
@@ -69,13 +71,13 @@ public class ZKManager {
       client.getZookeeperClient().blockUntilConnectedOrTimedOut();
     }
 
-    List<String> nodes = client.getChildren().forPath(zkNode);
+    List<String> nodes = client.getChildren().forPath(zkRegPath);
     for(String node : nodes) {
-      String nodeData = new String( client.getData().forPath(zkNode + "/" + node) );
+      String nodeData = new String( client.getData().forPath(zkRegPath + "/" + node) );
       NodeInfo nInfo = NodeInfo.parseNodeInfo(nodeData);
       if( node.startsWith(prefix) && nInfo.localAddress.equals(nodeInfo.localAddress)
           && nInfo.localPort == nodeInfo.localPort ) {
-        return zkNode + "/" + node;
+        return zkRegPath + "/" + node;
       }
     }
     return null;
@@ -108,5 +110,32 @@ public class ZKManager {
     if( null != client ) {
       client.close();
     }
+  }
+
+  public static List<String> getNodes(ZKInfo zkInfo) throws Exception {
+    CuratorFramework client = clientMap.get(zkInfo.connString);
+    if( null == client ) {
+      return null;
+    }
+    if( !client.getZookeeperClient().isConnected() ) {
+      client.start();
+      client.blockUntilConnected();
+    }
+    List<String> nodes = client.getChildren().forPath(zkInfo.zkRegPath);
+    List<String> res = Lists.newArrayList();
+    for( String node : nodes ) {
+      String nodeData = new String( client.getData().forPath(zkInfo.zkRegPath + "/" + node) );
+      res.add(nodeData);
+    }
+    return res;
+  }
+
+  public static NodeInfo getPrimaryServer(ZKInfo zkInfo) throws Exception {
+    List<String> nodes = getNodes(zkInfo);
+    if( null == nodes ) {
+      return null;
+    }
+    Collections.sort(nodes);
+    return NodeInfo.parseNodeInfo(nodes.get(0));
   }
 }
