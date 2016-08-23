@@ -13,26 +13,44 @@ import org.slf4j.LoggerFactory;
 import java.util.Properties;
 
 /**
+ *
  * @author caonn@mediav.com
  * @version 16/8/18.
  */
 public class DataKeeperLocal implements Runnable {
   private static final Logger LOGGER = LoggerFactory.getLogger(DataKeeperLocal.class);
 
-  private final DataKeeperHandler handler;
+  private final DataKeeperHandler dataHandler;
   private final TNonblockingServer server;
+
+  private final DataConsumeHandler consumeHandler;
+  private final Thread consumeThread;
+
+  private final DataSyncHandler syncHandler;
+  private final Thread syncThread;
+
   private final ZKInfo zkInfo;
   private final NodeInfo nodeInfo;
   private String zkNode = null;
+  private boolean localMode = true;
 
 
   public DataKeeperLocal(Properties properties) throws Exception {
     zkInfo = new ZKInfo(properties);
     nodeInfo = NodeInfo.getLocalNodeInfo(properties);
-    handler = new DataKeeperHandler(1000, 1000);
-    TProcessor processor = new DataKeeperService.Processor<>(handler);
+    dataHandler = new DataKeeperHandler(1000, 1000, 100, 2000);
+    localMode = Boolean.parseBoolean(properties.getProperty(Constants.LOCAL_MODE));
+    TProcessor processor = new DataKeeperService.Processor<>(dataHandler);
     TNonblockingServerSocket socket = new TNonblockingServerSocket(nodeInfo.localPort);
     server = new THsHaServer( new THsHaServer.Args(socket).processor(processor) );
+
+    consumeHandler = new DataConsumeHandler(dataHandler);
+    consumeThread = new Thread(consumeHandler);
+    consumeThread.start();
+
+    syncHandler = new DataSyncHandler(dataHandler, localMode, zkInfo);
+    syncThread = new Thread(syncHandler);
+    syncThread.start();
 
     try {
       zkNode = ZKManager.register(zkInfo, nodeInfo);
@@ -59,17 +77,22 @@ public class DataKeeperLocal implements Runnable {
 
 
   public void shutdown() {
-    try {
-      boolean state = ZKManager.unregister(zkInfo, zkNode);
-      LOGGER.info("UnRegister Node: {}, closing state : {}, ", zkNode, state);
-      ZKManager.closeClient(zkInfo);
-    } catch (Exception e ) {
-      LOGGER.error("UnRegister Node: {} failed, exception: {}", zkNode, e);
+    if(!localMode) {
+      try {
+        boolean state = ZKManager.unregister(zkInfo, zkNode);
+        LOGGER.info("UnRegister Node: {}, closing state : {}, ", zkNode, state);
+        ZKManager.closeClient(zkInfo);
+      } catch (Exception e) {
+        LOGGER.error("UnRegister Node: {} failed, exception: {}", zkNode, e);
+      }
     }
 
     if( server.isServing()) {
       server.stop();
     }
+
+    consumeHandler.shutdown();
+    syncHandler.shutdown();
 
     LOGGER.info("Shutdown server successfully.");
   }

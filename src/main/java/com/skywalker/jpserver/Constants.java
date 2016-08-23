@@ -12,10 +12,12 @@ public class Constants {
   public static final long NO_ENTRY_KEY = -1;
   public static final int NO_ENTRY_VALUE = 0;
 
-  public static final String CONN_STRING = "CONN_STRING";
-  public static final String ZK_REG_PATH = "ZK_REG_PATH";
-  public static final String ZK_PATH = "ZK_PATH";
+  public static final String CONN_STRING = "conn_string";
+  public static final String ZK_REG_PATH = "zk_reg_path";
+  public static final String ZK_PATH = "zk_path";
 
-  public static final String LOCAL_ADDRESS  = "LOCAL_ADDRESS";
-  public static final String LOCAL_PORT = "LOCAL_PORT";
+  public static final String LOCAL_ADDRESS  = "local_address";
+  public static final String LOCAL_PORT = "local_port";
+
+  public static final String LOCAL_MODE = "local_mode";
 }
