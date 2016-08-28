@@ -35,7 +35,6 @@ import static com.skywalker.jpserver.Constants.*;
 public class DataKeeperHandler implements DataKeeperService.Iface {
   private static Logger LOGGER = LoggerFactory.getLogger(DataKeeperHandler.class);
   TLongIntMap dataMap = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
-  TLongIntMap cache = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
   List<TLongIntMap> cacheList = Lists.newArrayList();
   AtomicIntegerArray lockArray = new AtomicIntegerArray(2);
   BlockingQueue<List<Point>> dataPointQueue;
@@ -46,6 +45,7 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
   private int updateThresh = 100;
   private int timeThresh = 2000;
   private int buffSize = 2;
+  private int maxCacheSize = 1000;
 
   public DataKeeperHandler( int dataPointQueueSize, int queueWaitTime, int updateThresh, int timeThresh ) {
     this.dataPointQueue = new LinkedBlockingQueue<>(dataPointQueueSize);
@@ -88,11 +88,17 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
       for( int i = 0; i < buffSize; i++ ) {
         boolean available = lockArray.compareAndSet(i, 0, 1);
         if( available ) {
-          cache = cacheList.get(i);
+          TLongIntMap cache = cacheList.get(i);
+          dataList.stream().forEach(p -> cache.put(p.getIndex(), p.getValue()));
+          updateCounter++;
+          if( updateCounter >= maxCacheSize ) {
+            updateCounter = 0;
+            updateTime = System.currentTimeMillis();
+            lockArray.set(i, 1);
+          }
         }
       }
-      dataList.stream().forEach(p -> cache.put(p.getIndex(), p.getValue()));
-      updateCounter++;
+
     } catch (InterruptedException e) {
       LOGGER.error("Can not poll from queue, exception: {}", e);
     }
@@ -107,9 +113,8 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
       return false;
     }
     if( local ) {
-      lock.lock();
+      TLongIntMap cache = new TLongIntHashMap();
       cache.forEachEntry( (l, i) -> { int value = dataMap.get(l) + i; dataMap.put(l, value); return true;} );
-      lock.unlock();
     } else {
       try {
         NodeInfo nodeInfo = ZKManager.getPrimaryServer(zkInfo);
