@@ -7,9 +7,12 @@ import org.apache.thrift.TProcessor;
 import org.apache.thrift.server.THsHaServer;
 import org.apache.thrift.server.TNonblockingServer;
 import org.apache.thrift.transport.TNonblockingServerSocket;
+import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.Properties;
 
 /**
@@ -34,6 +37,18 @@ public class DataKeeperLocal implements Runnable {
   private String zkNode = null;
   private boolean localMode = true;
 
+  public static void main(String [] args) throws Exception {
+    ServerOptions options = new ServerOptions();
+    CmdLineParser parser = new CmdLineParser(new ServerOptions());
+    parser.parseArgument(args);
+
+    Properties properties = new Properties();
+    properties.load(new FileInputStream(new File(options.getPropFile())));
+
+    DataKeeperLocal dataKeeperLocal = new DataKeeperLocal(properties);
+    dataKeeperLocal.run();
+
+  }
 
   public DataKeeperLocal(Properties properties) throws Exception {
     zkInfo = new ZKInfo(properties);
@@ -70,7 +85,9 @@ public class DataKeeperLocal implements Runnable {
         server.serve();
       }
       consumeThread.start();
+      consumeThread.setDaemon(true);
       syncThread.start();
+      syncThread.setDaemon(true);
     } catch (Exception e) {
       LOGGER.error("Can not start server : {}", e);
     }

@@ -1,10 +1,9 @@
 package com.skywalker.jpserver;
 
-import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
-import sun.tools.asm.CatchData;
 
-import javax.smartcardio.CardTerminal;
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.Properties;
 
 /**
@@ -25,16 +24,14 @@ import java.util.Properties;
 public class DataKeeperServer {
 
   public void initialize(Properties properties) {
-
   }
-  public static void main(String [] args) {
-    try {
-      ServerOptions options = new ServerOptions();
-      CmdLineParser parser = new CmdLineParser(new ServerOptions());
-      parser.parseArgument(args);
-    } catch(CmdLineException e) {
+  public static void main(String [] args) throws Exception {
+    ServerOptions options = new ServerOptions();
+    CmdLineParser parser = new CmdLineParser(new ServerOptions());
+    parser.parseArgument(args);
 
-    }
+    Properties properties = new Properties();
+    properties.load(new FileInputStream(new File(options.getPropFile())));
 
   }
 }

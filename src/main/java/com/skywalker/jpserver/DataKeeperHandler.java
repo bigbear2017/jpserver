@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -22,6 +23,11 @@ import static com.skywalker.jpserver.Constants.*;
 /**
  * This handler will handle data internally. All push requests will be cached first.
  * When the cache has been synchronized, the cache will be added to data and cleared.
+ * There are some designs here. Because we need to write to the cache all the time,
+ * the data map need to read the cache when the cache is full or is old, however we
+ * can not write and read at the same time, we need a lock to keep read and write correct.
+ * To avoid lock, we use a cache list. When a cache is full, it will not be written anymore.
+ * Only when it has been processed, it will be available.
  *
  * @author caonn@mediav.com
  * @version 16/7/13.
@@ -30,6 +36,8 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
   private static Logger LOGGER = LoggerFactory.getLogger(DataKeeperHandler.class);
   TLongIntMap dataMap = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
   TLongIntMap cache = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
+  List<TLongIntMap> cacheList = Lists.newArrayList();
+  AtomicIntegerArray lockArray = new AtomicIntegerArray(2);
   BlockingQueue<List<Point>> dataPointQueue;
   Lock lock = new ReentrantReadWriteLock().writeLock();
   int queueWaitTime = 1000;
@@ -37,12 +45,18 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
   private long updateTime = System.currentTimeMillis();
   private int updateThresh = 100;
   private int timeThresh = 2000;
+  private int buffSize = 2;
 
   public DataKeeperHandler( int dataPointQueueSize, int queueWaitTime, int updateThresh, int timeThresh ) {
     this.dataPointQueue = new LinkedBlockingQueue<>(dataPointQueueSize);
     this.queueWaitTime = queueWaitTime;
     this.updateThresh = updateThresh;
     this.timeThresh = timeThresh;
+    for( int i = 0; i < 2; i++) {
+      cacheList.add(new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE));
+      lockArray.set(i, 0);
+    }
+
   }
 
   /**
@@ -71,9 +85,13 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
   public void putToCache() {
     try {
       List<Point> dataList = dataPointQueue.poll(queueWaitTime, TimeUnit.MILLISECONDS);
-      lock.lock();
+      for( int i = 0; i < buffSize; i++ ) {
+        boolean available = lockArray.compareAndSet(i, 0, 1);
+        if( available ) {
+          cache = cacheList.get(i);
+        }
+      }
       dataList.stream().forEach(p -> cache.put(p.getIndex(), p.getValue()));
-      lock.unlock();
       updateCounter++;
     } catch (InterruptedException e) {
       LOGGER.error("Can not poll from queue, exception: {}", e);

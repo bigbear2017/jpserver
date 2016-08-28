@@ -10,7 +10,8 @@ import java.util.Properties;
 
 /**
  * A simple class, which can be used to store information about address and port.
- * Each node will register node info to zk.
+ * Node info example : "123.23.34.12:7514". It can be registered to zookeeper. Then
+ * other clients will know how to connect to it.
  *
  * @author caonn@mediav.com
  * @version 16/8/18.

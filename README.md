@@ -12,6 +12,14 @@ a server, it will connect to zookeeper and get a node from there.
 Then a client can connect to the server it gets. The client can
 pull and push to server.
 
+##### Double Buffer
+Each server will store all values into two caches and a data map.
+When a client send data to a server, the server will store all values
+into the cache. Once the update counter is large or the update time is
+old, the cache will be updated to data map. When syncing with primary 
+server, the final value will be stored at another cache first. Then, 
+if need or update time is old, we update the data map.
+
 ##### Synchronization
 Each server will receive data from clients. It will collect the data
 and keep it locally. Internally, Every 0.1 second, all nodes will
@@ -32,4 +40,5 @@ we can define the new functions to support new features.
 
 ### Some common packages to Implement
 1. hadoop utils to read data
-2. zoo keeper to use
+2. zoo keeper to use [finished]
+3. 
