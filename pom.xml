@@ -67,7 +67,25 @@
           </execution>
         </executions>
       </plugin>
-
+      <plugin>  
+        <groupId>org.apache.maven.plugins</groupId>  
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <executions>  
+          <execution>  
+            <id>default-compile</id>  
+            <phase>compile</phase>  
+            <goals>  
+              <goal>compile</goal>  
+            </goals>  
+          </execution>  
+        </executions>  
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+          <encoding>UTF-8</encoding>  
+        </configuration>  
+      </plugin>  
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -87,11 +105,6 @@
             </goals>
             <configuration>
               <outputDirectory>${project.build.outputDirectory}/lib</outputDirectory>
-              <includeScope>runtime</includeScope>
-              <excludeScope>test,provided</excludeScope>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>false</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
             </configuration>
           </execution>
         </executions>
@@ -105,17 +118,15 @@
             <goals>
               <goal>jar</goal>
             </goals>
-            <configuration>
-              <outputDirectory>${project.build.outputDirectory}/lib</outputDirectory>
-              <includes>
-                <include>**/*.*</include>
-                <include>${project.build.outputDirectory}/lib</include>
-              </includes>
-            </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
+    <resources>
+      <resource>
+        <directory>src/gen-java</directory>
+      </resource>
+    </resources>
   </build>
 
   <dependencies>
@@ -145,7 +156,13 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>1.5.8</version>
+      <version>1.7.21</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12 -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.21</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/org.apache.curator/curator-recipes -->
     <dependency>
@@ -156,7 +173,7 @@
     <dependency>
       <groupId>log4j</groupId>
       <artifactId>log4j</artifactId>
-      <version>1.2.14</version>
+      <version>1.2.17</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
