@@ -39,10 +39,12 @@ public class DataKeeperLocal implements Runnable {
 
   public static void main(String [] args) throws Exception {
     ServerOptions options = new ServerOptions();
-    CmdLineParser parser = new CmdLineParser(new ServerOptions());
+    CmdLineParser parser = new CmdLineParser(options);
     parser.parseArgument(args);
 
     Properties properties = new Properties();
+    System.out.println(options.getPropFile());
+    LOGGER.info(options.getPropFile());
     properties.load(new FileInputStream(new File(options.getPropFile())));
 
     DataKeeperLocal dataKeeperLocal = new DataKeeperLocal(properties);
@@ -65,6 +67,11 @@ public class DataKeeperLocal implements Runnable {
     syncHandler = new DataSyncHandler(dataHandler, localMode, zkInfo);
     syncThread = new Thread(syncHandler);
 
+    System.out.println(properties);
+    System.out.println("local model:" + localMode);
+    System.out.println(zkInfo);
+    localMode=true;
+
     if( !localMode ) {
       try {
         zkNode = ZKManager.register(zkInfo, nodeInfo);
@@ -75,10 +82,7 @@ public class DataKeeperLocal implements Runnable {
         throw new InterruptedException("Can not register to zookeeper!");
       }
     }
-  }
 
-  @Override
-  public void run() {
     LOGGER.info("Starting server!");
     try {
       if (!server.isServing()) {
@@ -92,6 +96,10 @@ public class DataKeeperLocal implements Runnable {
       LOGGER.error("Can not start server : {}", e);
     }
     LOGGER.info("Done !");
+  }
+
+  @Override
+  public void run() {
   }
 
 

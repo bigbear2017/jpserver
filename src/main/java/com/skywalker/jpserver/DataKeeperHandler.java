@@ -12,10 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerArray;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static com.skywalker.jpserver.Constants.*;
 
@@ -36,15 +33,14 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
   private static Logger LOGGER = LoggerFactory.getLogger(DataKeeperHandler.class);
   TLongIntMap dataMap = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
   List<TLongIntMap> cacheList = Lists.newArrayList();
-  AtomicIntegerArray lockArray = new AtomicIntegerArray(2);
+  private int buffSize = 100;
+  AtomicIntegerArray lockArray = new AtomicIntegerArray(buffSize);
   BlockingQueue<List<Point>> dataPointQueue;
-  Lock lock = new ReentrantReadWriteLock().writeLock();
   int queueWaitTime = 1000;
   private long updateCounter = 0;
   private long updateTime = System.currentTimeMillis();
   private int updateThresh = 100;
   private int timeThresh = 2000;
-  private int buffSize = 2;
   private int maxCacheSize = 1000;
 
   public DataKeeperHandler( int dataPointQueueSize, int queueWaitTime, int updateThresh, int timeThresh ) {
@@ -52,7 +48,7 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
     this.queueWaitTime = queueWaitTime;
     this.updateThresh = updateThresh;
     this.timeThresh = timeThresh;
-    for( int i = 0; i < 2; i++) {
+    for( int i = 0; i < buffSize; i++) {
       cacheList.add(new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE));
       lockArray.set(i, 0);
     }
@@ -83,24 +79,25 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
   }
 
   public void putToCache() {
-    try {
-      List<Point> dataList = dataPointQueue.poll(queueWaitTime, TimeUnit.MILLISECONDS);
-      for( int i = 0; i < buffSize; i++ ) {
-        boolean available = lockArray.compareAndSet(i, 0, 1);
-        if( available ) {
-          TLongIntMap cache = cacheList.get(i);
-          dataList.stream().forEach(p -> cache.put(p.getIndex(), p.getValue()));
-          updateCounter++;
-          if( updateCounter >= maxCacheSize ) {
-            updateCounter = 0;
-            updateTime = System.currentTimeMillis();
-            lockArray.set(i, 1);
-          }
-        }
+    if(dataPointQueue.isEmpty()) {
+      return;
+    }
+    List<Point> dataList = dataPointQueue.peek();
+    boolean full = true;
+    for (int i = 0; i < buffSize; i++) {
+      boolean available = lockArray.compareAndSet(i, 0, 1);
+      if (!available) {
+        continue;
       }
-
-    } catch (InterruptedException e) {
-      LOGGER.error("Can not poll from queue, exception: {}", e);
+      full = false;
+      final TLongIntMap cache = cacheList.get(i);
+      cache.clear();
+      dataList.stream().forEach(p -> cache.put(p.getIndex(), p.getValue()));
+      lockArray.set(i, 2);
+      updateCounter++;
+    }
+    if (!full) {
+      dataPointQueue.remove();
     }
   }
 
@@ -113,12 +110,17 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
       return false;
     }
     if( local ) {
-      TLongIntMap cache = new TLongIntHashMap();
-      cache.forEachEntry( (l, i) -> { int value = dataMap.get(l) + i; dataMap.put(l, value); return true;} );
+      for(int i = 0; i < buffSize; i++ ) {
+        boolean cached = lockArray.compareAndSet(i, 2, 1);
+        if(cached) {
+          TLongIntMap cache = cacheList.get(i);
+          cache.forEachEntry( (l, j) -> { int value = dataMap.get(l) + j; dataMap.put(l, value); return true;} );
+        }
+        lockArray.set(i, 0);
+      }
     } else {
       try {
         NodeInfo nodeInfo = ZKManager.getPrimaryServer(zkInfo);
-
         //TODO sync data to primary server.
       } catch (Exception e) {
       }
