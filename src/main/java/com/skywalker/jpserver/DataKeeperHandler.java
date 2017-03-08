@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -33,7 +34,9 @@ import static com.skywalker.jpserver.Constants.*;
 public class DataKeeperHandler implements DataKeeperService.Iface {
   private static Logger LOGGER = LoggerFactory.getLogger(DataKeeperHandler.class);
   TLongIntMap dataMap = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
+  TLongIntMap dataCache = new TLongIntHashMap(INITIAL_CAPACITY, LOAD_FACTOR, NO_ENTRY_KEY, NO_ENTRY_VALUE);
   ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+  AtomicInteger cacheLock = new AtomicInteger();
   BlockingQueue<List<Point>> dataPointQueue;
   private long updateCounter = 0;
   private long updateTime = System.currentTimeMillis();
@@ -79,6 +82,7 @@ public class DataKeeperHandler implements DataKeeperService.Iface {
       dataMap.put(p.getIndex(), p.getValue());
     }
     readWriteLock.writeLock().unlock();
+
   }
 
   /**
